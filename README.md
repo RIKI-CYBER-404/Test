@@ -29,7 +29,7 @@
  rm -rf Test
  git clone https://github.com/RIKI-CYBER-404/Test
  cd Test 
- python run.py
+ python XD.py
 
 ```
 
