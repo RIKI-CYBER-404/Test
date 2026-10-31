@@ -1,10 +1,10 @@
-
 name: Build UnityAndroidIDE APK
 
 on:
   push:
     paths:
       - 'upload.zip'
+      - '.github/workflows/android.yml'
   workflow_dispatch:
 
 permissions:
@@ -25,30 +25,34 @@ jobs:
           java-version: '17'
 
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
         with:
+          cmdline-tools-version: 15859902
+          packages: 'platform-tools'
           accept-android-sdk-licenses: true
+          log-accepted-android-sdk-licenses: false
 
       - name: Install Android SDK packages
         run: |
-          yes | sdkmanager --licenses
-          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+          sdkmanager --install "platforms;android-35" "build-tools;35.0.0"
 
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '8.9'
+      - name: Install Gradle 8.9
+        run: |
+          curl -fsSL https://services.gradle.org/distributions/gradle-8.9-bin.zip -o /tmp/gradle.zip
+          unzip -q /tmp/gradle.zip -d /opt
+          echo "/opt/gradle-8.9/bin" >> "$GITHUB_PATH"
 
       - name: Extract project ZIP
         run: |
           test -f upload.zip
           mkdir -p project
-          unzip -q upload.zip -d project
+          unzip -oq upload.zip -d project
           test -f project/settings.gradle.kts
           test -f project/app/build.gradle.kts
 
       - name: Build Debug APK
-        run: gradle --no-daemon --stacktrace -p project :app:assembleDebug
+        run: |
+          gradle --no-daemon --stacktrace -p project :app:assembleDebug
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
@@ -57,3 +61,13 @@ jobs:
           path: project/app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
           retention-days: 14
+
+      - name: Upload build reports on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Android-build-reports
+          path: |
+            project/**/build/reports/
+            project/**/build/outputs/logs/
+          if-no-files-found: ignore
